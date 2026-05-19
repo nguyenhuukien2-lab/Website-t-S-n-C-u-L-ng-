@@ -575,6 +575,69 @@ export const Courts = () => {
     return grid;
   }, [dbBookings, activeDay, dateOffset]);
 
+  // ── Date tabs ─────────────────────────────
+  const buildDates = () => {
+    const now  = new Date();
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + i + dateOffset * 7);
+      const label =
+        i === 0 && dateOffset === 0
+          ? 'Hôm nay'
+          : d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      days.push({ label, d });
+    }
+    return days;
+  };
+  const dates = buildDates();
+
+  // ── Slot toggle ───────────────────────────
+  const toggleSlot = useCallback((court, idx, h, price) => {
+    const key = `${court.id}_${idx}`;
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[key]) delete next[key];
+      else next[key] = { court, idx, h, price };
+      return next;
+    });
+  }, []);
+
+  const clearAll = () => setSelected({});
+
+  // ── Derived panel data ─────────────────────
+  const selectedKeys = Object.keys(selected);
+  const totalPrice   = selectedKeys.reduce((s, k) => s + selected[k].price, 0);
+  const panelGroups  = {};
+  selectedKeys.forEach((k) => {
+    const { court, h } = selected[k];
+    if (!panelGroups[court.id]) panelGroups[court.id] = [];
+    panelGroups[court.id].push(h + ':00');
+  });
+  const panelParts = Object.entries(panelGroups).map(([id, times]) => `${id}: ${times.join(', ')}`);
+
+  // ── Open modal ────────────────────────────
+  const openModal = () => {
+    if (!selectedKeys.length) { alert('Vui lòng chọn ít nhất một khung giờ!'); return; }
+    setShowModal(true);
+  };
+
+  // Scroll to court section in schedule
+  const scrollToCourt = (id) => {
+    setActiveCourt(id);
+    scheduleRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // After success: clear selection & close modal
+  const handleSuccess = () => {
+    fetchRealBookings();
+  };
+  const handleModalClose = () => {
+    setShowModal(false);
+    // If success screen was shown, also clear
+    clearAll();
+  };
+
   // Kiểm tra nếu người dùng chưa đăng nhập thì hiển thị yêu cầu đăng ký/đăng nhập
   if (!user) {
     return (
@@ -681,69 +744,6 @@ export const Courts = () => {
       </div>
     );
   }
-
-  // ── Date tabs ─────────────────────────────
-  const buildDates = () => {
-    const now  = new Date();
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + i + dateOffset * 7);
-      const label =
-        i === 0 && dateOffset === 0
-          ? 'Hôm nay'
-          : d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' });
-      days.push({ label, d });
-    }
-    return days;
-  };
-  const dates = buildDates();
-
-  // ── Slot toggle ───────────────────────────
-  const toggleSlot = useCallback((court, idx, h, price) => {
-    const key = `${court.id}_${idx}`;
-    setSelected((prev) => {
-      const next = { ...prev };
-      if (next[key]) delete next[key];
-      else next[key] = { court, idx, h, price };
-      return next;
-    });
-  }, []);
-
-  const clearAll = () => setSelected({});
-
-  // ── Derived panel data ─────────────────────
-  const selectedKeys = Object.keys(selected);
-  const totalPrice   = selectedKeys.reduce((s, k) => s + selected[k].price, 0);
-  const panelGroups  = {};
-  selectedKeys.forEach((k) => {
-    const { court, h } = selected[k];
-    if (!panelGroups[court.id]) panelGroups[court.id] = [];
-    panelGroups[court.id].push(h + ':00');
-  });
-  const panelParts = Object.entries(panelGroups).map(([id, times]) => `${id}: ${times.join(', ')}`);
-
-  // ── Open modal ────────────────────────────
-  const openModal = () => {
-    if (!selectedKeys.length) { alert('Vui lòng chọn ít nhất một khung giờ!'); return; }
-    setShowModal(true);
-  };
-
-  // Scroll to court section in schedule
-  const scrollToCourt = (id) => {
-    setActiveCourt(id);
-    scheduleRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  // After success: clear selection & close modal
-  const handleSuccess = () => {
-    fetchRealBookings();
-  };
-  const handleModalClose = () => {
-    setShowModal(false);
-    // If success screen was shown, also clear
-    clearAll();
-  };
 
   // ── SIDEBAR ───────────────────────────────
   const SidebarItem = ({ c }) => {
