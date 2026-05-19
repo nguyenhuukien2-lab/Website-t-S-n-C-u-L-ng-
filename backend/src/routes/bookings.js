@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { sendBookingNotification } = require('../utils/telegram');
 
 // GET /api/bookings - Lấy tất cả lịch đặt sân từ database
 router.get('/', async (req, res) => {
@@ -118,6 +119,11 @@ router.post('/', async (req, res) => {
       depositAmount: newBooking.deposit_amount,
       notes: newBooking.notes || '',
     };
+
+    // Gửi thông báo đến Telegram trong background (không await để người dùng không phải chờ)
+    sendBookingNotification(formattedBooking).catch((err) => {
+      console.error('❌ Lỗi khi gửi thông báo Telegram:', err.message);
+    });
 
     res.status(201).json({ success: true, message: 'Đặt sân thành công!', data: formattedBooking });
   } catch (error) {
