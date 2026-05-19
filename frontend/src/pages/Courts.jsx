@@ -98,6 +98,15 @@ function BookingModal({ selected, booked, onClose, onSuccess, bookingDate }) {
     try {
       let rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       rawApiUrl = rawApiUrl.trim();
+
+      // Self-healing: if we are in production (live domain) but API URL is localhost or internal Render host
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocalhost) {
+        if (rawApiUrl.includes('localhost') || rawApiUrl === 'caulong-pro-backend' || !rawApiUrl.includes('.')) {
+          rawApiUrl = 'https://caulong-pro-backend.onrender.com';
+        }
+      }
+
       if (rawApiUrl && !rawApiUrl.startsWith('http://') && !rawApiUrl.startsWith('https://')) {
         rawApiUrl = 'https://' + rawApiUrl;
       }

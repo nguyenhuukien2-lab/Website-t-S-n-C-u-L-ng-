@@ -8,6 +8,15 @@ const TOKEN_KEY = 'smashcourt_token';
 const getNormalizedApiUrl = () => {
   let url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
   url = url.trim();
+
+  // Self-healing: if we are in production (live domain) but API URL is localhost or internal Render host
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (!isLocalhost) {
+    if (url.includes('localhost') || url === 'caulong-pro-backend' || !url.includes('.')) {
+      url = 'https://caulong-pro-backend.onrender.com';
+    }
+  }
+
   if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
     url = 'https://' + url;
   }

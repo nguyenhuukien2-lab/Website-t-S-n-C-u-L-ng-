@@ -26,10 +26,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: caulong-pro-backend
-          property: host
+        value: https://caulong-pro-backend.onrender.com
 
 databases:
   # 3. PostgreSQL Database (Free Tier)
