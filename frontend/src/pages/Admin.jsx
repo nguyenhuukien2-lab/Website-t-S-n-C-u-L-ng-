@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 export const Admin = () => {
   // Authentication status
+  const { user, setUser } = useAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -96,6 +98,15 @@ export const Admin = () => {
     }
   }, [isLoggedIn]);
 
+  // Auto-login or redirect if session is active
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin' || user.role === 'owner' || user.role === 'staff') {
+        setIsLoggedIn(true);
+      }
+    }
+  }, [user]);
+
   // Lấy header kèm token xác thực gửi lên API
   const getAuthHeaders = () => {
     const token = localStorage.getItem('smashcourt_token');
@@ -111,6 +122,17 @@ export const Admin = () => {
     
     // Bypass nhanh tài khoản demo 'admin' / 'admin' để thuận tiện phát triển
     if (username === 'admin' && password === 'admin') {
+      const session = {
+        id: 'demo-admin',
+        fullName: 'Admin Demo',
+        email: 'admin@demo.local',
+        phone: '',
+        role: 'admin',
+        avatar: 'A'
+      };
+      localStorage.setItem('smashcourt_session', JSON.stringify(session));
+      localStorage.setItem('smashcourt_token', '');
+      setUser(session);
       setIsLoggedIn(true);
       setLoginError('');
       loadData();
@@ -126,11 +148,23 @@ export const Admin = () => {
       const data = await res.json();
       if (data.success) {
         if (data.user.role === 'admin' || data.user.role === 'staff') {
-          // Lưu token phân quyền vào bộ nhớ cục bộ
+          const session = {
+            id: data.user.id,
+            fullName: data.user.fullName,
+            email: data.user.email,
+            phone: data.user.phone,
+            role: data.user.role,
+            avatar: data.user.fullName.trim().charAt(0).toUpperCase()
+          };
           localStorage.setItem('smashcourt_token', data.token);
-          setIsLoggedIn(true);
-          setLoginError('');
-          loadData();
+          localStorage.setItem('smashcourt_session', JSON.stringify(session));
+          setUser(session);
+          
+          if (data.user.role === 'admin' || data.user.role === 'staff') {
+            setIsLoggedIn(true);
+            setLoginError('');
+            loadData();
+          }
         } else {
           setLoginError('Tài khoản của bạn (Khách hàng) không được cấp quyền truy cập Admin!');
         }
@@ -238,15 +272,19 @@ export const Admin = () => {
   const stats = useMemo(() => {
     const totalConfirmed = bookings.filter(b => b.status === 'Confirmed').reduce((sum, b) => sum + b.price, 0);
     const totalPending = bookings.filter(b => b.status === 'Pending').reduce((sum, b) => sum + b.price, 0);
-    const totalSpent = customers.reduce((sum, c) => sum + (parseInt(c.spent) || 0), 0);
+    
+    // Nếu có bảng lịch sử thanh toán riêng thì sẽ fetch từ đó, 
+    // hiện tại dùng luôn tổng các booking đã confirm trong hệ thống.
+    const totalRevenueAllTime = totalConfirmed; 
+    
     return {
       revenueToday: totalConfirmed,
       potentialRevenue: totalPending,
-      totalRevenueAllTime: totalSpent,
+      totalRevenueAllTime: totalRevenueAllTime,
       totalOrders: bookings.length,
       pendingOrders: bookings.filter(b => b.status === 'Pending').length,
     };
-  }, [bookings, customers]);
+  }, [bookings]);
 
   // ─────────────────────────────────────────
   // LOGIN SCREEN
@@ -303,33 +341,44 @@ export const Admin = () => {
       {/* Header bar */}
       <header className="ad-header">
         <div className="ad-logo">
-          <span className="ad-badge-shield">🛡️ CONTROL PANEL</span>
-          <h3>SmashCourt Admin</h3>
+          <span className="ad-badge-shield">
+            {user?.role === 'staff' ? '🛡️ NHÂN VIÊN' : '🛡️ CONTROL PANEL'}
+          </span>
+          <h3>{user?.role === 'staff' ? 'Dashboard Nhân viên sân' : 'SmashCourt Admin'}</h3>
         </div>
         <div className="ad-header-actions">
-          <span className="ad-user-indicator">🟢 Chủ sân (Online)</span>
-          <button className="ad-btn-logout" onClick={() => setIsLoggedIn(false)}>Đăng xuất</button>
+          <span className="ad-user-indicator">
+            🟢 {user?.role === 'staff' ? 'Nhân viên (Online)' : 'Chủ sân (Online)'}
+          </span>
+          <button className="ad-btn-logout" onClick={() => {
+            setIsLoggedIn(false);
+            window.location.href = '/login';
+          }}>Đăng xuất</button>
         </div>
       </header>
 
       {/* Main dashboard stats cards */}
       <section className="ad-stats-grid">
-        <div className="ad-stat-card">
-          <div className="ad-stat-icon" style={{ color: 'var(--green)' }}>💵</div>
-          <div className="ad-stat-info">
-            <div className="ad-stat-label">Doanh thu hôm nay (Đã Confirm)</div>
-            <div className="ad-stat-val">{stats.revenueToday.toLocaleString('vi-VN')}đ</div>
-            <div className="ad-stat-sub">Tiềm năng: +{stats.potentialRevenue.toLocaleString('vi-VN')}đ chờ duyệt</div>
-          </div>
-        </div>
-        <div className="ad-stat-card">
-          <div className="ad-stat-icon" style={{ color: 'var(--gold)' }}>🏆</div>
-          <div className="ad-stat-info">
-            <div className="ad-stat-label">Tổng doanh thu hệ thống</div>
-            <div className="ad-stat-val">{stats.totalRevenueAllTime.toLocaleString('vi-VN')}đ</div>
-            <div className="ad-stat-sub">Từ toàn bộ lịch sử khách hàng</div>
-          </div>
-        </div>
+        {user?.role !== 'staff' && (
+          <>
+            <div className="ad-stat-card">
+              <div className="ad-stat-icon" style={{ color: 'var(--green)' }}>💵</div>
+              <div className="ad-stat-info">
+                <div className="ad-stat-label">Doanh thu hôm nay (Đã Confirm)</div>
+                <div className="ad-stat-val">{stats.revenueToday.toLocaleString('vi-VN')}đ</div>
+                <div className="ad-stat-sub">Tiềm năng: +{stats.potentialRevenue.toLocaleString('vi-VN')}đ chờ duyệt</div>
+              </div>
+            </div>
+            <div className="ad-stat-card">
+              <div className="ad-stat-icon" style={{ color: 'var(--gold)' }}>🏆</div>
+              <div className="ad-stat-info">
+                <div className="ad-stat-label">Tổng doanh thu hệ thống</div>
+                <div className="ad-stat-val">{stats.totalRevenueAllTime.toLocaleString('vi-VN')}đ</div>
+                <div className="ad-stat-sub">Từ toàn bộ lịch sử khách hàng</div>
+              </div>
+            </div>
+          </>
+        )}
         <div className="ad-stat-card">
           <div className="ad-stat-icon" style={{ color: 'var(--cyan)' }}>📅</div>
           <div className="ad-stat-info">
@@ -338,14 +387,38 @@ export const Admin = () => {
             <div className="ad-stat-sub">{stats.pendingOrders} lịch chờ xác nhận</div>
           </div>
         </div>
-        <div className="ad-stat-card">
-          <div className="ad-stat-icon" style={{ color: '#CC66FF' }}>👥</div>
-          <div className="ad-stat-info">
-            <div className="ad-stat-label">Tổng số khách hàng</div>
-            <div className="ad-stat-val">{customers.length} thành viên</div>
-            <div className="ad-stat-sub">Có 3 tài khoản đạt hạng VIP Gold</div>
+        
+        {user?.role === 'staff' && (
+          <>
+            <div className="ad-stat-card">
+              <div className="ad-stat-icon" style={{ color: '#FFA500' }}>🏟️</div>
+              <div className="ad-stat-info">
+                <div className="ad-stat-label">Tổng số sân</div>
+                <div className="ad-stat-val">{courts.length}</div>
+                <div className="ad-stat-sub">Quản lý toàn bộ hệ thống</div>
+              </div>
+            </div>
+            <div className="ad-stat-card">
+              <div className="ad-stat-icon" style={{ color: 'var(--green)' }}>✅</div>
+              <div className="ad-stat-info">
+                <div className="ad-stat-label">Sân đang hoạt động</div>
+                <div className="ad-stat-val">{courts.filter(c => c.status === 'Active').length}</div>
+                <div className="ad-stat-sub">Sẵn sàng phục vụ khách</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {user?.role !== 'staff' && (
+          <div className="ad-stat-card">
+            <div className="ad-stat-icon" style={{ color: '#CC66FF' }}>👥</div>
+            <div className="ad-stat-info">
+              <div className="ad-stat-label">Tổng số khách hàng</div>
+              <div className="ad-stat-val">{customers.length} thành viên</div>
+              <div className="ad-stat-sub">Có 3 tài khoản đạt hạng VIP Gold</div>
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Layout Grid */}
@@ -358,30 +431,36 @@ export const Admin = () => {
           >
             <span>📅</span> Quản lý lịch đặt
           </button>
-          <button 
-            className={`ad-side-btn${activeTab === 'revenue' ? ' active' : ''}`}
-            onClick={() => setActiveTab('revenue')}
-          >
-            <span>📈</span> Phân tích doanh thu
-          </button>
-          <button 
-            className={`ad-side-btn${activeTab === 'customers' ? ' active' : ''}`}
-            onClick={() => setActiveTab('customers')}
-          >
-            <span>👥</span> Danh sách khách hàng
-          </button>
+          
           <button 
             className={`ad-side-btn${activeTab === 'courts' ? ' active' : ''}`}
             onClick={() => setActiveTab('courts')}
           >
             <span>🏸</span> Trạng thái sân
           </button>
-          <button 
-            className={`ad-side-btn${activeTab === 'rbac' ? ' active' : ''}`}
-            onClick={() => setActiveTab('rbac')}
-          >
-            <span>🛡️</span> Phân quyền
-          </button>
+
+          {user?.role !== 'staff' && (
+            <>
+              <button 
+                className={`ad-side-btn${activeTab === 'revenue' ? ' active' : ''}`}
+                onClick={() => setActiveTab('revenue')}
+              >
+                <span>📈</span> Phân tích doanh thu
+              </button>
+              <button 
+                className={`ad-side-btn${activeTab === 'customers' ? ' active' : ''}`}
+                onClick={() => setActiveTab('customers')}
+              >
+                <span>👥</span> Danh sách khách hàng
+              </button>
+              <button 
+                className={`ad-side-btn${activeTab === 'rbac' ? ' active' : ''}`}
+                onClick={() => setActiveTab('rbac')}
+              >
+                <span>🛡️</span> Phân quyền
+              </button>
+            </>
+          )}
         </aside>
 
         {/* Content Area */}

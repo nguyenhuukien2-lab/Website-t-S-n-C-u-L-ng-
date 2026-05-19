@@ -77,7 +77,7 @@ const EyeIcon = ({ open }) => open ? (
    LOGIN PAGE
    ════════════════════════════════════════ */
 export const Login = () => {
-  const { login, loginWithSocial } = useAuth();
+  const { login, logout, loginWithSocial } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -125,10 +125,10 @@ export const Login = () => {
 
     const result = await login({ email, password });
     if (result.success) {
-      if (result.role === 'admin') {
-        navigate('/owner');
-      } else if (result.role === 'staff') {
-        navigate('/staff');
+      if (result.role === 'admin' || result.role === 'staff') {
+        logout();
+        setError('Tài khoản admin/nhân viên chỉ được đăng nhập qua trang /admin.');
+        setShakeKey(k => k + 1);
       } else {
         navigate('/');
       }
@@ -312,6 +312,10 @@ export const Login = () => {
               ⚠️ {error}
             </div>
           )}
+
+          <div className="auth-note" style={{ marginBottom: 12, color: '#F5D061', fontSize: 13 }}>
+            <strong>Lưu ý:</strong> Admin và Nhân viên vui lòng đăng nhập qua <Link to="/admin">trang Admin</Link>.
+          </div>
 
           <button type="submit" className="auth-submit" disabled={loading}>
             {loading ? <span className="auth-spinner" /> : '⚡ Đăng nhập'}

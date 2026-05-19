@@ -26,9 +26,10 @@ router.post('/reseed', async (req, res) => {
     // Seed Roles
     await db.query(`
       INSERT INTO role (id, role_name, role_note) VALUES
-      ('r-admin',    'Chủ sân (Admin)',       'Toàn quyền quản lý hệ thống'),
-      ('r-staff',    'Nhân viên sân (Staff)', 'Quản lý lịch đặt và trạng thái sân'),
-      ('r-customer', 'Khách hàng',            'Đặt sân và xem lịch sử')
+      ('r-admin',    'Admin',            'Toàn quyền quản lý hệ thống'),
+      ('r-owner',    'Chủ sân',          'Quản lý sân và doanh thu'),
+      ('r-staff',    'Nhân viên',        'Xác nhận/hủy booking, quản lý sân'),
+      ('r-customer', 'Khách hàng',       'Đặt sân và xem lịch sử')
     `);
 
     // Seed Permissions
@@ -77,19 +78,37 @@ router.post('/reseed', async (req, res) => {
       ('rp-04','r-admin','p-customer-view'),
       ('rp-05','r-admin','p-rbac-manage'),
       ('rp-06','r-admin','p-booking-create'),
-      ('rp-07','r-staff','p-booking-manage'),
-      ('rp-08','r-staff','p-court-manage'),
-      ('rp-09','r-staff','p-customer-view'),
-      ('rp-10','r-customer','p-booking-create')
+      ('rp-07','r-owner','p-court-manage'),
+      ('rp-08','r-owner','p-revenue-view'),
+      ('rp-09','r-owner','p-customer-view'),
+      ('rp-10','r-staff','p-booking-manage'),
+      ('rp-11','r-staff','p-court-manage'),
+      ('rp-12','r-staff','p-customer-view'),
+      ('rp-13','r-customer','p-booking-create')
     `);
 
     // Assign Roles to Users
-    const adminUser = await db.query("SELECT id FROM users WHERE email = 'admin@smashcourt.com' LIMIT 1");
-    const custUser  = await db.query("SELECT id FROM users WHERE email = 'khachhang@gmail.com' LIMIT 1");
+    const adminUser = await db.query("SELECT id FROM users WHERE email = 'admin' LIMIT 1");
+    const ownerUser = await db.query("SELECT id FROM users WHERE email = 'owner' LIMIT 1");
+    const staffUser = await db.query("SELECT id FROM users WHERE email = 'staff' LIMIT 1");
+    const custUser  = await db.query("SELECT id FROM users WHERE email = 'customer' LIMIT 1");
+
     if (adminUser.rows.length > 0) {
       await db.query(
         `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-admin')`,
         [`ur-${adminUser.rows[0].id}`, adminUser.rows[0].id]
+      );
+    }
+    if (ownerUser.rows.length > 0) {
+      await db.query(
+        `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-owner')`,
+        [`ur-${ownerUser.rows[0].id}`, ownerUser.rows[0].id]
+      );
+    }
+    if (staffUser.rows.length > 0) {
+      await db.query(
+        `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-staff')`,
+        [`ur-${staffUser.rows[0].id}`, staffUser.rows[0].id]
       );
     }
     if (custUser.rows.length > 0) {
@@ -218,7 +237,7 @@ router.post('/role-perm/assign', async (req, res) => {
     if (exists.rows.length > 0) {
       return res.json({ success: true, message: 'Quyền đã được gán trước đó!' });
     }
-    const rpId = `rp-${roleId}-${permId}-${Date.now()}`;
+    const rpId = `rp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     await db.query(
       'INSERT INTO role_permision (id, role_id, permision_id) VALUES ($1,$2,$3)',
       [rpId, roleId, permId]

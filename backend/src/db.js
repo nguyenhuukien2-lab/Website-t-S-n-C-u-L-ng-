@@ -130,6 +130,17 @@ const initDatabase = async () => {
   `;
 
   try {
+    // Drop old tables to reset (uncomment to use)
+    // await pool.query('DROP TABLE IF EXISTS user_role CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS role_permision CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS permision_lines CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS permision CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS role CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS menu CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS bookings CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS courts CASCADE;');
+    // await pool.query('DROP TABLE IF EXISTS users CASCADE;');
+
     await pool.query(createUsersTable);
     await pool.query(createCourtsTable);
     await pool.query(createBookingsTable);
@@ -159,16 +170,20 @@ const initDatabase = async () => {
     // Thêm các tài khoản mẫu nếu bảng users trống
     const usersCount = await pool.query('SELECT COUNT(*) FROM users');
     if (parseInt(usersCount.rows[0].count) === 0) {
-      const adminPasswordHash = await bcrypt.hash('adminpassword', 10);
-      const customerPasswordHash = await bcrypt.hash('123456password', 10);
+      const adminPasswordHash = await bcrypt.hash('admin', 10);
+      const ownerPasswordHash = await bcrypt.hash('owner123', 10);
+      const staffPasswordHash = await bcrypt.hash('staff123', 10);
+      const customerPasswordHash = await bcrypt.hash('customer123', 10);
 
       const seedUsers = `
         INSERT INTO users (full_name, email, phone, password, role) VALUES
-        ('Quản trị viên', 'admin@smashcourt.com', '0901234567', $1, 'admin'),
-        ('Nguyễn Văn A', 'khachhang@gmail.com', '0907654321', $2, 'customer');
+        ('Admin System', 'admin', '0901234567', $1, 'admin'),
+        ('Chủ Sân Cầu Lông', 'owner', '0902345678', $2, 'owner'),
+        ('Nhân Viên Sân', 'staff', '0903456789', $3, 'staff'),
+        ('Nguyễn Văn A', 'customer', '0904567890', $4, 'customer');
       `;
-      await pool.query(seedUsers, [adminPasswordHash, customerPasswordHash]);
-      console.log('🌱 Đã tạo các tài khoản đăng nhập mẫu (Admin và Khách hàng)!');
+      await pool.query(seedUsers, [adminPasswordHash, ownerPasswordHash, staffPasswordHash, customerPasswordHash]);
+      console.log('🌱 Đã tạo các tài khoản đăng nhập mẫu (Admin, Owner, Staff, Khách hàng)!');
     }
 
     // Thêm lịch đặt mẫu nếu bảng bookings trống để test dễ dàng
@@ -190,9 +205,10 @@ const initDatabase = async () => {
       // 1. Seed Roles
       await pool.query(`
         INSERT INTO role (id, role_name, role_note) VALUES
-        ('r-admin',    'Chủ sân (Admin)',       'Toàn quyền quản lý hệ thống'),
-        ('r-staff',    'Nhân viên sân (Staff)', 'Quản lý lịch đặt và trạng thái sân'),
-        ('r-customer', 'Khách hàng',            'Đặt sân và xem lịch sử')
+        ('r-admin',    'Admin',            'Toàn quyền quản lý hệ thống'),
+        ('r-owner',    'Chủ sân',          'Quản lý sân và doanh thu'),
+        ('r-staff',    'Nhân viên',        'Xác nhận/hủy booking, quản lý sân'),
+        ('r-customer', 'Khách hàng',       'Đặt sân và xem lịch sử')
       `);
 
       // 2. Seed Permissions
@@ -241,10 +257,13 @@ const initDatabase = async () => {
         ('rp-04','r-admin','p-customer-view'),
         ('rp-05','r-admin','p-rbac-manage'),
         ('rp-06','r-admin','p-booking-create'),
-        ('rp-07','r-staff','p-booking-manage'),
-        ('rp-08','r-staff','p-court-manage'),
-        ('rp-09','r-staff','p-customer-view'),
-        ('rp-10','r-customer','p-booking-create')
+        ('rp-07','r-owner','p-court-manage'),
+        ('rp-08','r-owner','p-revenue-view'),
+        ('rp-09','r-owner','p-customer-view'),
+        ('rp-10','r-staff','p-booking-manage'),
+        ('rp-11','r-staff','p-court-manage'),
+        ('rp-12','r-staff','p-customer-view'),
+        ('rp-13','r-customer','p-booking-create')
       `);
 
       console.log('🌱 Đã khởi tạo dữ liệu Phân quyền RBAC (Roles, Permissions, Menus)!');
@@ -253,13 +272,27 @@ const initDatabase = async () => {
     // 6. Assign Roles → Users (nếu user_role trống)
     const userRoleCount = await pool.query('SELECT COUNT(*) FROM user_role');
     if (parseInt(userRoleCount.rows[0].count) === 0) {
-      const adminUser = await pool.query("SELECT id FROM users WHERE email = 'admin@smashcourt.com' LIMIT 1");
-      const custUser  = await pool.query("SELECT id FROM users WHERE email = 'khachhang@gmail.com' LIMIT 1");
+      const adminUser = await pool.query("SELECT id FROM users WHERE email = 'admin' LIMIT 1");
+      const ownerUser = await pool.query("SELECT id FROM users WHERE email = 'owner' LIMIT 1");
+      const staffUser = await pool.query("SELECT id FROM users WHERE email = 'staff' LIMIT 1");
+      const custUser  = await pool.query("SELECT id FROM users WHERE email = 'customer' LIMIT 1");
 
       if (adminUser.rows.length > 0) {
         await pool.query(
           `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-admin')`,
           [`ur-${adminUser.rows[0].id}`, adminUser.rows[0].id]
+        );
+      }
+      if (ownerUser.rows.length > 0) {
+        await pool.query(
+          `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-admin')`,
+          [`ur-${ownerUser.rows[0].id}`, ownerUser.rows[0].id]
+        );
+      }
+      if (staffUser.rows.length > 0) {
+        await pool.query(
+          `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-staff')`,
+          [`ur-${staffUser.rows[0].id}`, staffUser.rows[0].id]
         );
       }
       if (custUser.rows.length > 0) {
@@ -268,7 +301,7 @@ const initDatabase = async () => {
           [`ur-${custUser.rows[0].id}`, custUser.rows[0].id]
         );
       }
-      console.log('🌱 Đã gán vai trò cho các tài khoản mẫu!');
+      console.log('🌱 Đã gán vai trò cho các tài khoản mẫu (admin, owner, staff, customer)!');
     }
 
   } catch (error) {

@@ -9,6 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'smashcourt_jwt_secret_key_9988';
 const mapRoleIdToName = (roleId, fallback) => {
   if (roleId === 'r-admin') return 'admin';
   if (roleId === 'r-staff') return 'staff';
+  if (roleId === 'r-owner') return 'owner';
   if (roleId === 'r-customer') return 'customer';
   return fallback || 'customer';
 };

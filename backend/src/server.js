@@ -35,9 +35,17 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'CầuLông Pro API is running' });
 });
 
-// 404 handler
+// Serve Static Frontend (for Production Build)
+const path = require('path');
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// 404 handler for API routes, fallback to React index.html for other routes
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route không tồn tại' });
+  if (req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Route không tồn tại' });
+  }
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 // Error handler
@@ -47,5 +55,21 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server đang chạy tại http://localhost:${PORT}`);
+  console.log(`
+╔═══════════════════════════════════════════════════════╗
+║          🎾 SMASHCOURT PRO - DEVELOPMENT MODE         ║
+╚═══════════════════════════════════════════════════════╝
+
+✅ Backend API:  http://localhost:${PORT}
+
+📱 Frontend URLs:
+   👨‍💼 Admin:     http://localhost:5174/admin
+   🧑‍💼 Nhân viên:  http://localhost:5174/staff
+
+🚀 Hệ thống sẵn sàng!
+  `)
 });
+
+// Trigger restart
+// trigger
+// trigger reload
