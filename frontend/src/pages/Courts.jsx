@@ -532,17 +532,20 @@ export const Courts = () => {
     const dateString = `${year}-${month}-${day}`;
 
     // Duyệt qua danh sách đặt sân thật từ PostgreSQL để đánh dấu "Đã đặt"
-    dbBookings.forEach(booking => {
-      if (booking.date === dateString) {
+    const safeBookings = Array.isArray(dbBookings) ? dbBookings : [];
+    safeBookings.forEach(booking => {
+      if (booking && booking.date === dateString && booking.time && typeof booking.time === 'string') {
         const courtIdMap = { 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E' };
         const courtLetter = courtIdMap[booking.courtId];
         
         if (courtLetter && grid[courtLetter]) {
-          // Lấy giờ bắt đầu từ chuỗi "09:00 - 10:00" -> 9
-          const startHour = parseInt(booking.time.split(':')[0]);
-          const slotIdx = startHour - 5; // 5:00 là index 0
-          if (slotIdx >= 0 && slotIdx < 14) {
-            grid[courtLetter][slotIdx] = true;
+          const parts = booking.time.split(':');
+          if (parts.length > 0) {
+            const startHour = parseInt(parts[0]);
+            const slotIdx = startHour - 5; // 5:00 là index 0
+            if (slotIdx >= 0 && slotIdx < 14) {
+              grid[courtLetter][slotIdx] = true;
+            }
           }
         }
       }
@@ -723,7 +726,8 @@ export const Courts = () => {
 
   // ── SIDEBAR ───────────────────────────────
   const SidebarItem = ({ c }) => {
-    const bookedCount = booked[c.id].filter(Boolean).length;
+    const bookedList  = booked && booked[c.id] ? booked[c.id] : new Array(14).fill(false);
+    const bookedCount = bookedList.filter(Boolean).length;
     const free        = 14 - bookedCount;
     const selCount    = selectedKeys.filter((k) => k.startsWith(c.id + '_')).length;
     const statusClass = free === 0 ? 'badge-full' : free <= 3 ? 'badge-busy' : 'badge-open';
@@ -743,10 +747,10 @@ export const Courts = () => {
           {fmt(c.prices.normal)}<span>đ / giờ</span>
         </div>
         <div className="sc-ci-mini">
-          {booked[c.id].map((_, i) => {
+          {bookedList.map((_, i) => {
             const k = `${c.id}_${i}`;
             if (selected[k])       return <div key={i} className="sc-ms sc-ms-s" />;
-            if (booked[c.id][i])   return <div key={i} className="sc-ms sc-ms-b" />;
+            if (bookedList[i])     return <div key={i} className="sc-ms sc-ms-b" />;
             return <div key={i} className="sc-ms sc-ms-a" />;
           })}
         </div>
@@ -759,7 +763,8 @@ export const Courts = () => {
 
   // ── COURT SECTION ─────────────────────────
   const CourtSection = ({ c }) => {
-    const bookedCount = booked[c.id].filter(Boolean).length;
+    const bookedList  = booked && booked[c.id] ? booked[c.id] : new Array(14).fill(false);
+    const bookedCount = bookedList.filter(Boolean).length;
     const free        = 14 - bookedCount;
     const selKeys     = selectedKeys.filter((k) => k.startsWith(c.id + '_'));
     const selTotal    = selKeys.reduce((s, k) => s + selected[k].price, 0);
@@ -831,7 +836,7 @@ export const Courts = () => {
             <div className="sc-slots-row">
               {HOURS.map((h, idx) => {
                 const key      = `${c.id}_${idx}`;
-                const isBookd  = booked[c.id][idx];
+                const isBookd  = bookedList[idx];
                 const isSel    = !!selected[key];
                 const price    = getPrice(c, h);
 
