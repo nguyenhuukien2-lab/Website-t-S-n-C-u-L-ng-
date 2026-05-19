@@ -96,6 +96,7 @@ function BookingModal({ selected, booked, onClose, onSuccess, bookingDate }) {
   // Hàm lưu đặt lịch xuống database PostgreSQL thật
   const saveBookingToDatabase = async (newCode) => {
     try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const d = bookingDate ? new Date(bookingDate) : new Date();
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -111,7 +112,7 @@ function BookingModal({ selected, booked, onClose, onSuccess, bookingDate }) {
         const courtIdMap = { 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5 };
         const mappedCourtId = courtIdMap[item.court.id] || 1;
 
-        await fetch('http://localhost:5000/api/bookings', {
+        await fetch(`${API_URL}/api/bookings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
