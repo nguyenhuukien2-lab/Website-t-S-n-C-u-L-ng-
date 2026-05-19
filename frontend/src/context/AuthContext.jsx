@@ -5,7 +5,16 @@ const AuthContext = createContext(null);
 const SESSION_KEY = 'smashcourt_session';
 const TOKEN_KEY = 'smashcourt_token';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const getNormalizedApiUrl = () => {
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  url = url.trim();
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  return url;
+};
+
+const API_URL = getNormalizedApiUrl();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

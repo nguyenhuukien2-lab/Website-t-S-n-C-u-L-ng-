@@ -96,7 +96,12 @@ function BookingModal({ selected, booked, onClose, onSuccess, bookingDate }) {
   // Hàm lưu đặt lịch xuống database PostgreSQL thật
   const saveBookingToDatabase = async (newCode) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      let rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      rawApiUrl = rawApiUrl.trim();
+      if (rawApiUrl && !rawApiUrl.startsWith('http://') && !rawApiUrl.startsWith('https://')) {
+        rawApiUrl = 'https://' + rawApiUrl;
+      }
+      const API_URL = rawApiUrl;
       const d = bookingDate ? new Date(bookingDate) : new Date();
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
