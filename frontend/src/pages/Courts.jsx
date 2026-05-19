@@ -507,11 +507,19 @@ export const Courts = () => {
   const [dateOffset, setDateOffset]   = useState(0);
   const [activeDay, setActiveDay]     = useState(0);
   const [showModal, setShowModal]     = useState(false);
+  const [toaster, setToaster]         = useState(null);
   const scheduleRefs = useRef({});
 
   useEffect(() => {
     fetchRealBookings();
   }, [activeDay, dateOffset]);
+
+  useEffect(() => {
+    if (toaster) {
+      const timer = setTimeout(() => setToaster(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toaster]);
 
   const booked = React.useMemo(() => {
     // Khởi tạo tất cả sân trống (14 slots mỗi sân)
@@ -597,11 +605,15 @@ export const Courts = () => {
     const key = `${court.id}_${idx}`;
     setSelected((prev) => {
       const next = { ...prev };
-      if (next[key]) delete next[key];
-      else next[key] = { court, idx, h, price };
+      if (next[key]) {
+        delete next[key];
+      } else {
+        next[key] = { court, idx, h, price };
+        setToaster({ message: `Đã chọn ${court.name} lúc ${h}:00` });
+      }
       return next;
     });
-  }, []);
+  }, [setToaster]);
 
   const clearAll = () => setSelected({});
 
