@@ -533,18 +533,39 @@ export const Courts = () => {
 
     // Duyệt qua danh sách đặt sân thật từ PostgreSQL để đánh dấu "Đã đặt"
     const safeBookings = Array.isArray(dbBookings) ? dbBookings : [];
+    
+    const getCleanDate = (dateVal) => {
+      if (!dateVal) return '';
+      if (dateVal instanceof Date) {
+        const year = dateVal.getFullYear();
+        const month = String(dateVal.getMonth() + 1).padStart(2, '0');
+        const day = String(dateVal.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      if (typeof dateVal === 'string') {
+        return dateVal.split('T')[0];
+      }
+      return String(dateVal);
+    };
+
     safeBookings.forEach(booking => {
-      if (booking && booking.date === dateString && booking.time && typeof booking.time === 'string') {
-        const courtIdMap = { 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E' };
-        const courtLetter = courtIdMap[booking.courtId];
-        
-        if (courtLetter && grid[courtLetter]) {
-          const parts = booking.time.split(':');
-          if (parts.length > 0) {
-            const startHour = parseInt(parts[0]);
-            const slotIdx = startHour - 5; // 5:00 là index 0
-            if (slotIdx >= 0 && slotIdx < 14) {
-              grid[courtLetter][slotIdx] = true;
+      if (booking && booking.date) {
+        const cleanBookingDate = getCleanDate(booking.date);
+        if (cleanBookingDate === dateString && booking.time && typeof booking.time === 'string') {
+          const courtIdMap = { 
+            1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E',
+            '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E'
+          };
+          const courtLetter = courtIdMap[booking.courtId];
+          
+          if (courtLetter && grid[courtLetter]) {
+            const parts = booking.time.split(':');
+            if (parts.length > 0) {
+              const startHour = parseInt(parts[0]);
+              const slotIdx = startHour - 5; // 5:00 là index 0
+              if (slotIdx >= 0 && slotIdx < 14) {
+                grid[courtLetter][slotIdx] = true;
+              }
             }
           }
         }

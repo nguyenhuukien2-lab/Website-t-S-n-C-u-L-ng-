@@ -12,16 +12,19 @@ import { Contact } from './pages/Contact';
 import { FAQ } from './pages/FAQ';
 import { Login, Register } from './pages/Auth';
 import { Admin } from './pages/Admin';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 // User pages container with persistent navbar & footer
 const UserLayout = () => {
   return (
-    <div className="app">
-      <Navbar />
-      <Outlet />
-      <Footer />
-    </div>
+    <ErrorBoundary>
+      <div className="app">
+        <Navbar />
+        <Outlet />
+        <Footer />
+      </div>
+    </ErrorBoundary>
   );
 };
 
@@ -35,7 +38,7 @@ function App() {
             <Route element={<UserLayout />}>
               <Route path="/" element={<Home />} />
               <Route path="/booking" element={<Booking />} />
-              <Route path="/courts" element={<Courts />} />
+              <Route path="/courts" element={<ErrorBoundary><Courts /></ErrorBoundary>} />
               <Route path="/account" element={<Account />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/faq" element={<FAQ />} />
