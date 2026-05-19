@@ -96,15 +96,12 @@ function BookingModal({ selected, booked, onClose, onSuccess, bookingDate }) {
   // Hàm lưu đặt lịch xuống database PostgreSQL thật
   const saveBookingToDatabase = async (newCode) => {
     try {
-      let rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      let rawApiUrl = import.meta.env.VITE_API_URL || '';
       rawApiUrl = rawApiUrl.trim();
 
-      // Self-healing: if we are in production (live domain) but API URL is localhost or internal Render host
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      if (!isLocalhost) {
-        if (rawApiUrl.includes('localhost') || rawApiUrl === 'caulong-pro-backend' || !rawApiUrl.includes('.')) {
-          rawApiUrl = 'https://caulong-pro-backend.onrender.com';
-        }
+      // Fall back to live Render backend by default to ensure local development works seamlessly with PostgreSQL
+      if (!rawApiUrl || rawApiUrl.includes('localhost') || rawApiUrl === 'caulong-pro-backend' || !rawApiUrl.includes('.')) {
+        rawApiUrl = 'https://caulong-pro-backend.onrender.com';
       }
 
       if (rawApiUrl && !rawApiUrl.startsWith('http://') && !rawApiUrl.startsWith('https://')) {
