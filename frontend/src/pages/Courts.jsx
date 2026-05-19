@@ -757,71 +757,74 @@ export const Courts = () => {
           </div>
         </div>
 
-        {/* Time header */}
-        <div className="sc-time-header-wrap">
-          <div className="sc-th-spacer" />
-          <div className="sc-th-grid">
-            {HOURS.map((h) => (
-              <div className="sc-th-cell" key={h}>
-                {h}:00
-                {isPeak(h)  && <><br />🔥</>}
-                {isEarly(h) && <><br />🌅</>}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Price row */}
-        <div className="sc-price-row-wrap">
-          <div className="sc-pr-label">Giá / giờ</div>
-          <div className="sc-pr-cells">
-            {HOURS.map((h) => {
-              const price = getPrice(c, h);
-              const color = isPeak(h) ? 'var(--gold)' : isEarly(h) ? 'var(--cyan)' : 'var(--muted)';
-              return (
-                <div className="sc-pr-cell" style={{ color }} key={h}>
-                  {fmt(price)}đ
+        {/* Scrollable timeline container for horizontal mobile swiping */}
+        <div className="sc-timeline-scroll-wrap">
+          {/* Time header */}
+          <div className="sc-time-header-wrap">
+            <div className="sc-th-spacer" />
+            <div className="sc-th-grid">
+              {HOURS.map((h) => (
+                <div className="sc-th-cell" key={h}>
+                  {h}:00
+                  {isPeak(h)  && <><br />🔥</>}
+                  {isEarly(h) && <><br />🌅</>}
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Slots */}
-        <div className="sc-slots-wrap">
-          <div className="sc-slots-label">Trạng thái</div>
-          <div className="sc-slots-row">
-            {HOURS.map((h, idx) => {
-              const key      = `${c.id}_${idx}`;
-              const isBookd  = booked[c.id][idx];
-              const isSel    = !!selected[key];
-              const price    = getPrice(c, h);
+          {/* Price row */}
+          <div className="sc-price-row-wrap">
+            <div className="sc-pr-label">Giá / giờ</div>
+            <div className="sc-pr-cells">
+              {HOURS.map((h) => {
+                const price = getPrice(c, h);
+                const color = isPeak(h) ? 'var(--gold)' : isEarly(h) ? 'var(--cyan)' : 'var(--muted)';
+                return (
+                  <div className="sc-pr-cell" style={{ color }} key={h}>
+                    {fmt(price)}đ
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-              let cls = 'sc-slot-cell ';
-              if      (isSel)    cls += 'sc-slot-selected';
-              else if (isBookd)  cls += 'sc-slot-booked';
-              else               cls += 'sc-slot-avail';
+          {/* Slots */}
+          <div className="sc-slots-wrap">
+            <div className="sc-slots-label">Trạng thái</div>
+            <div className="sc-slots-row">
+              {HOURS.map((h, idx) => {
+                const key      = `${c.id}_${idx}`;
+                const isBookd  = booked[c.id][idx];
+                const isSel    = !!selected[key];
+                const price    = getPrice(c, h);
 
-              return (
-                <div
-                  key={idx}
-                  className={cls}
-                  onClick={isBookd ? undefined : () => toggleSlot(c, idx, h, price)}
-                >
-                  {isPeak(h) && !isBookd && (
-                    <span className="sc-slot-peak-tag">HOT</span>
-                  )}
-                  {isBookd ? (
-                    <span style={{ fontSize: 9 }}>Đã đặt</span>
-                  ) : (
-                    <>
-                      <span style={{ fontSize: 11 }}>{isSel ? '✓' : '+'}</span>
-                      <span className="sc-slot-sprice">{fmt(price)}đ</span>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                let cls = 'sc-slot-cell ';
+                if      (isSel)    cls += 'sc-slot-selected';
+                else if (isBookd)  cls += 'sc-slot-booked';
+                else               cls += 'sc-slot-avail';
+
+                return (
+                  <div
+                    key={idx}
+                    className={cls}
+                    onClick={isBookd ? undefined : () => toggleSlot(c, idx, h, price)}
+                  >
+                    {isPeak(h) && !isBookd && (
+                      <span className="sc-slot-peak-tag">HOT</span>
+                    )}
+                    {isBookd ? (
+                      <span style={{ fontSize: 9 }}>Đã đặt</span>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 11 }}>{isSel ? '✓' : '+'}</span>
+                        <span className="sc-slot-sprice">{fmt(price)}đ</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

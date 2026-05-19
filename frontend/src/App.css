@@ -3590,5 +3590,163 @@ footer {
   padding-top: 12px;
 }
 
+/* ===== SMASHCOURT MOBILE RESPONSIVE OPTIMIZATIONS ===== */
+@media (max-width: 900px) {
+  /* Main Layout */
+  .sc-main {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Sidebar transformed into a beautiful horizontal tab selector */
+  .sc-sidebar {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 16px;
+    background: rgba(5, 10, 20, 0.45);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+    border-right: none;
+    max-height: none;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .sc-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sc-sidebar-title {
+    display: none; /* Hide vertical title on mobile tab bar */
+  }
+
+  .sc-court-item {
+    flex-shrink: 0;
+    width: 210px;
+    margin-bottom: 0;
+    padding: 12px;
+    background: rgba(10, 22, 40, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .sc-court-item.active {
+    border-color: var(--gold);
+    background: rgba(255, 215, 0, 0.06);
+  }
+
+  /* Schedule area adjustments */
+  .sc-schedule-area {
+    padding: 16px 16px 140px;
+    background: transparent;
+    overflow-x: hidden; /* Scroll is isolated inside sc-timeline-scroll-wrap now! */
+  }
+
+  .sc-court-section {
+    padding: 16px;
+    margin-bottom: 24px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Controls Bar */
+  .sc-controls {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .sc-date-tabs {
+    width: 100%;
+    order: 2; /* Move tabs below navigation buttons */
+  }
+
+  .sc-legend {
+    width: 100%;
+    order: 3;
+    margin-left: 0;
+    justify-content: flex-start;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Court Section Header */
+  .sc-cs-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .sc-cs-right {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  /* Timeline Horizontal Scrollable Container */
+  .sc-timeline-scroll-wrap {
+    overflow-x: auto;
+    margin: 16px -8px 0;
+    padding: 0 8px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sc-timeline-scroll-wrap::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .sc-timeline-scroll-wrap::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.3);
+    border-radius: 2px;
+  }
+
+  /* Booking Bottom Panel */
+  .sc-booking-panel {
+    padding: 14px 16px;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .sc-bp-summary {
+    min-width: 100%;
+    margin-bottom: 2px;
+  }
+
+  .sc-bp-summary p {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .sc-btn-clear {
+    padding: 10px 14px;
+    font-size: 12px;
+    flex: 1;
+    text-align: center;
+  }
+
+  .sc-btn-confirm {
+    padding: 10px 20px;
+    font-size: 13px;
+    flex: 2;
+    text-align: center;
+  }
+
+  /* Forms in modal */
+  .sc-form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .sc-modal {
+    padding: 24px 16px;
+  }
+}
+
 
 
