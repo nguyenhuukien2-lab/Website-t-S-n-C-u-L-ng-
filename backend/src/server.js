@@ -6,6 +6,10 @@ const db = require('./db');
 // Khởi tạo cơ sở dữ liệu
 db.initDatabase();
 
+// Khởi động lắng nghe tin nhắn Telegram Bot (Long Polling)
+const { startPolling } = require('./utils/telegram_listener');
+startPolling();
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 

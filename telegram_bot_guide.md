@@ -92,3 +92,18 @@ Tài liệu này hướng dẫn chi tiết từng bước cách tạo một Tele
 
 > [!TIP]
 > Việc gửi thông báo được xử lý bất đồng bộ trong background. Khách hàng trên trang web sẽ nhận được thông báo đặt sân thành công ngay lập tức mà không cần đợi Telegram xử lý xong, đảm bảo tốc độ phản hồi cực nhanh và trải nghiệm người dùng tuyệt vời!
+
+---
+
+## 📊 Bước 5: Tra cứu Thống Kê qua Bot Telegram (Tính Năng Mới)
+
+Bên cạnh việc tự động báo tin vui khi có khách đặt sân, bạn có thể chủ động nhắn tin trực tiếp cho con Bot để yêu cầu xuất báo cáo thống kê doanh thu và lịch đặt bất kỳ lúc nào:
+
+1. Vào cuộc trò chuyện với Bot **SmashCourt Cầu Lông**.
+2. Gửi một trong các câu lệnh sau:
+   * **`/thongke`** hoặc nhắn chữ **`thống kê`**: Xem báo cáo tổng quan **Hôm nay** (Tổng lượt đặt, Tổng số khách đặt, Tổng tiền cọc đã thu, và danh sách chi tiết các sân + giờ đặt kèm SĐT).
+   * **`/thongke homqua`** (hoặc nhắn **`thống kê hôm qua`**): Xem báo cáo chi tiết của **Ngày hôm qua**.
+   * **`/help`**: Nhận hướng dẫn danh sách các câu lệnh.
+
+> [!WARNING]
+> **BẢO MẬT TUYỆT ĐỐI**: Vì lý do bảo mật dữ liệu doanh thu của sân, **Bot chỉ trả lời tin nhắn từ duy nhất tài khoản Telegram của bạn** (trùng khớp với `TELEGRAM_CHAT_ID` đã cấu hình). Bất kỳ tài khoản lạ nào nhắn tin cho Bot đều sẽ bị bỏ qua và không nhận được bất kỳ thông tin nào!
