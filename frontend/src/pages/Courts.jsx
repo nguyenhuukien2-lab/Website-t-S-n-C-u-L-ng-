@@ -477,10 +477,30 @@ export const Courts = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // stable booked data with stateful live simulator
-  const [liveBooked, setLiveBooked] = useState(() => generateBooked());
-  const booked = liveBooked;
-  const [toaster, setToaster] = useState(null);
+  // Lấy dữ liệu đặt sân thật từ database PostgreSQL
+  const [dbBookings, setDbBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
+
+  const fetchRealBookings = async () => {
+    try {
+      setLoadingBookings(true);
+      let rawApiUrl = import.meta.env.VITE_API_URL || '';
+      rawApiUrl = rawApiUrl.trim();
+      if (!rawApiUrl || rawApiUrl.includes('localhost') || rawApiUrl === 'caulong-pro-backend' || !rawApiUrl.includes('.')) {
+        rawApiUrl = 'https://caulong-pro-backend.onrender.com';
+      }
+      
+      const response = await fetch(`${rawApiUrl}/api/bookings`);
+      const resData = await response.json();
+      if (resData.success) {
+        setDbBookings(resData.data);
+      }
+    } catch (err) {
+      console.error('❌ Lỗi khi lấy danh sách đặt sân thực tế:', err);
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
 
   const [selected, setSelected] = useState({});      // key → {court,idx,h,price}
   const [activeCourt, setActiveCourt] = useState('A');
@@ -489,44 +509,47 @@ export const Courts = () => {
   const [showModal, setShowModal]     = useState(false);
   const scheduleRefs = useRef({});
 
-  // Background real-time booking simulation (every 14 seconds)
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Pick random court & slot index
-      const randCourt = COURTS[Math.floor(Math.random() * COURTS.length)];
-      const randSlotIdx = Math.floor(Math.random() * 14);
-      const slotKey = `${randCourt.id}_${randSlotIdx}`;
+    fetchRealBookings();
+  }, [activeDay, dateOffset]);
 
-      // If slot is currently free and not selected by user
-      if (!liveBooked[randCourt.id][randSlotIdx] && !selected[slotKey]) {
-        setLiveBooked(prev => {
-          const next = { ...prev };
-          const newArr = [...next[randCourt.id]];
-          newArr[randSlotIdx] = true;
-          next[randCourt.id] = newArr;
-          return next;
-        });
+  const booked = React.useMemo(() => {
+    // Khởi tạo tất cả sân trống (14 slots mỗi sân)
+    const grid = {
+      'A': new Array(14).fill(false),
+      'B': new Array(14).fill(false),
+      'C': new Array(14).fill(false),
+      'D': new Array(14).fill(false),
+      'E': new Array(14).fill(false),
+    };
 
-        // Set high-tech toast notification
-        const startHour = 5 + randSlotIdx;
-        const timeStr = `${startHour}:00 – ${startHour + 1}:00`;
-        setToaster({
-          id: Math.random(),
-          message: `⚡ Khách vừa đặt ${randCourt.name} · ${timeStr} (Thời gian thực)`
-        });
+    // Tính ngày được chọn dựa trên activeDay và dateOffset
+    const d = new Date();
+    d.setDate(d.getDate() + activeDay + dateOffset * 7);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+
+    // Duyệt qua danh sách đặt sân thật từ PostgreSQL để đánh dấu "Đã đặt"
+    dbBookings.forEach(booking => {
+      if (booking.date === dateString) {
+        const courtIdMap = { 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E' };
+        const courtLetter = courtIdMap[booking.courtId];
+        
+        if (courtLetter && grid[courtLetter]) {
+          // Lấy giờ bắt đầu từ chuỗi "09:00 - 10:00" -> 9
+          const startHour = parseInt(booking.time.split(':')[0]);
+          const slotIdx = startHour - 5; // 5:00 là index 0
+          if (slotIdx >= 0 && slotIdx < 14) {
+            grid[courtLetter][slotIdx] = true;
+          }
+        }
       }
-    }, 14000);
+    });
 
-    return () => clearInterval(interval);
-  }, [liveBooked, selected]);
-
-  // Clear toast automatically after 4 seconds
-  useEffect(() => {
-    if (toaster) {
-      const t = setTimeout(() => setToaster(null), 4000);
-      return () => clearTimeout(t);
-    }
-  }, [toaster]);
+    return grid;
+  }, [dbBookings, activeDay, dateOffset]);
 
   // Kiểm tra nếu người dùng chưa đăng nhập thì hiển thị yêu cầu đăng ký/đăng nhập
   if (!user) {
@@ -689,7 +712,9 @@ export const Courts = () => {
   };
 
   // After success: clear selection & close modal
-  const handleSuccess = () => {};
+  const handleSuccess = () => {
+    fetchRealBookings();
+  };
   const handleModalClose = () => {
     setShowModal(false);
     // If success screen was shown, also clear
