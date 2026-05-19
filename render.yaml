@@ -2,7 +2,7 @@ services:
   # 1. Backend Web Service (Node.js/Express)
   - type: web
     name: caulong-pro-backend
-    env: node
+    runtime: node
     plan: free
     rootDir: backend
     buildCommand: npm install
@@ -18,12 +18,13 @@ services:
         generateValue: true
 
   # 2. Frontend Static Site (React/Vite)
-  - type: static
+  - type: web
     name: caulong-pro-frontend
+    runtime: static
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishDir: dist
+    publishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
