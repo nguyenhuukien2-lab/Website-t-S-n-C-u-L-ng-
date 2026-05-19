@@ -137,13 +137,19 @@ export const Login = () => {
   const handleGoogleLoginReal = () => {
     setError('');
 
+    const isInAppBrowser = /FBAN|FBAV|Instagram|Zalo/i.test(navigator.userAgent);
+
     if (GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com') {
       setError('⚠️ Vui lòng dán Google Client ID thật của bạn vào đầu file Auth.jsx để mở cửa sổ Google thật!');
       return;
     }
 
     if (!window.google) {
-      setError('⚠️ Thư viện Google SDK đang tải, vui lòng thử lại sau ít giây!');
+      if (isInAppBrowser) {
+        setError('⚠️ Bạn đang mở trang web trong ứng dụng (Zalo/Facebook). Trình duyệt của Zalo/Facebook KHÔNG cho phép tải thư viện đăng nhập Google vì bảo mật. Vui lòng bấm vào biểu tượng dấu ba chấm (...) ở góc trên bên phải màn hình ➜ chọn "Mở bằng trình duyệt" (Safari/Chrome) để đăng nhập Google mượt mà!');
+      } else {
+        setError('⚠️ Thư viện Google SDK đang tải hoặc bị chặn bởi bộ chặn quảng cáo. Vui lòng thử lại sau ít giây!');
+      }
       return;
     }
 
@@ -319,6 +325,23 @@ export const Login = () => {
           </button>
         </div>
 
+        {/* Premium In-App Browser Guide Notice */}
+        {/FBAN|FBAV|Instagram|Zalo/i.test(navigator.userAgent) && (
+          <div style={{
+            background: 'rgba(255, 215, 0, 0.05)',
+            border: '1px dashed rgba(255, 215, 0, 0.25)',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            marginTop: '14px',
+            fontSize: '11px',
+            color: 'var(--gold)',
+            lineHeight: '1.45',
+            textAlign: 'center'
+          }}>
+            💡 <b>Mẹo đăng nhập:</b> Bạn đang dùng trình duyệt Zalo/Facebook. Hãy nhấn dấu <b>(...)</b> ở góc trên bên phải màn hình ➜ chọn <b>"Mở bằng trình duyệt"</b> để đăng nhập tài khoản Google/Facebook nhanh nhất!
+          </div>
+        )}
+
         <p className="auth-switch">
           Chưa có tài khoản?{' '}
           <Link to="/register" className="auth-switch-link">Đăng ký ngay →</Link>
@@ -415,13 +438,19 @@ export const Register = () => {
   const handleGoogleLoginReal = () => {
     setError('');
 
+    const isInAppBrowser = /FBAN|FBAV|Instagram|Zalo/i.test(navigator.userAgent);
+
     if (GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com') {
       setError('⚠️ Vui lòng dán Google Client ID thật của bạn vào đầu file Auth.jsx để mở cửa sổ Google thật!');
       return;
     }
 
     if (!window.google) {
-      setError('⚠️ Thư viện Google SDK đang tải, vui lòng thử lại sau ít giây!');
+      if (isInAppBrowser) {
+        setError('⚠️ Bạn đang mở trang web trong ứng dụng (Zalo/Facebook). Trình duyệt của Zalo/Facebook KHÔNG cho phép tải thư viện đăng nhập Google vì bảo mật. Vui lòng bấm vào biểu tượng dấu ba chấm (...) ở góc trên bên phải màn hình ➜ chọn "Mở bằng trình duyệt" (Safari/Chrome) để đăng nhập Google mượt mà!');
+      } else {
+        setError('⚠️ Thư viện Google SDK đang tải hoặc bị chặn bởi bộ chặn quảng cáo. Vui lòng thử lại sau ít giây!');
+      }
       return;
     }
 
@@ -630,6 +659,23 @@ export const Register = () => {
             <span style={{ fontSize: 18 }}>📘</span> FB thật
           </button>
         </div>
+
+        {/* Premium In-App Browser Guide Notice */}
+        {/FBAN|FBAV|Instagram|Zalo/i.test(navigator.userAgent) && (
+          <div style={{
+            background: 'rgba(255, 215, 0, 0.05)',
+            border: '1px dashed rgba(255, 215, 0, 0.25)',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            marginTop: '14px',
+            fontSize: '11px',
+            color: 'var(--gold)',
+            lineHeight: '1.45',
+            textAlign: 'center'
+          }}>
+            💡 <b>Mẹo đăng ký:</b> Bạn đang dùng trình duyệt Zalo/Facebook. Hãy nhấn dấu <b>(...)</b> ở góc trên bên phải màn hình ➜ chọn <b>"Mở bằng trình duyệt"</b> để đăng ký tài khoản Google/Facebook nhanh nhất!
+          </div>
+        )}
 
         <p className="auth-switch">
           Đã có tài khoản?{' '}
