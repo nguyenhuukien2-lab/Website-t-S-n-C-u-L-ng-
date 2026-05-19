@@ -28,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/courts', require('./routes/courts'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/rbac', require('./routes/rbac'));
 
 // Health check
 app.get('/api/health', (req, res) => {

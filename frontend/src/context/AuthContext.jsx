@@ -9,13 +9,13 @@ const getNormalizedApiUrl = () => {
   let url = import.meta.env.VITE_API_URL || '';
   url = url.trim();
 
-  // Fall back to live Render backend by default to ensure local development works seamlessly with PostgreSQL
-  if (!url || url.includes('localhost') || url === 'caulong-pro-backend' || !url.includes('.')) {
-    url = 'https://caulong-pro-backend.onrender.com';
+  // Mặc định chạy dưới localhost:5000 nếu không có biến môi trường
+  if (!url) {
+    url = 'http://localhost:5000';
   }
 
   if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
+    url = 'http://' + url;
   }
   return url;
 };
@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       localStorage.setItem(TOKEN_KEY, data.token);
       setUser(session);
-      return { success: true };
+      return { success: true, role: session.role };
     } catch (err) {
       console.error(err);
       return { success: false, message: 'Không thể kết nối đến máy chủ Backend!' };
@@ -131,7 +131,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       localStorage.setItem(TOKEN_KEY, data.token);
       setUser(session);
-      return { success: true };
+      return { success: true, role: session.role };
     } catch (err) {
       console.error(err);
       return { success: false, message: 'Không thể kết nối đến máy chủ Backend!' };

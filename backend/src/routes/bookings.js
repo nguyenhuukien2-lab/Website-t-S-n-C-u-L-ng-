@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { sendBookingNotification } = require('../utils/telegram');
+const authorize = require('../utils/rbac_guard');
 
 // GET /api/bookings - Lấy tất cả lịch đặt sân từ database
 router.get('/', async (req, res) => {
@@ -129,6 +130,52 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Lỗi khi đặt sân:', error.message);
     res.status(500).json({ success: false, error: 'Lỗi server khi thực hiện đặt sân' });
+  }
+});
+
+// PUT /api/bookings/:id/status - Cập nhật trạng thái lịch đặt sân (Confirmed hoặc Cancelled)
+router.put('/:id/status', authorize('Bookings', 'Confirm'), async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; // 'confirmed' | 'cancelled' | 'pending'
+
+  if (!status) {
+    return res.status(400).json({ success: false, error: 'Vui lòng cung cấp trạng thái mới' });
+  }
+
+  try {
+    const checkBooking = await db.query('SELECT * FROM bookings WHERE id = $1', [id]);
+    if (checkBooking.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy lịch đặt sân tương ứng' });
+    }
+
+    const updateQuery = 'UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *';
+    const result = await db.query(updateQuery, [status.toLowerCase(), id]);
+    const updatedBooking = result.rows[0];
+
+    // Trả về dữ liệu định dạng chuẩn của Frontend
+    const formattedBooking = {
+      id: updatedBooking.id,
+      courtId: updatedBooking.court_id,
+      courtName: updatedBooking.court_name,
+      date: new Date(updatedBooking.booking_date).toISOString().split('T')[0],
+      time: updatedBooking.time_slot,
+      status: updatedBooking.status.charAt(0).toUpperCase() + updatedBooking.status.slice(1), // Viết hoa chữ cái đầu cho khớp FE
+      customerName: updatedBooking.customer_name,
+      customerPhone: updatedBooking.customer_phone,
+      customerEmail: updatedBooking.customer_email,
+      paymentMethod: updatedBooking.payment_method,
+      depositAmount: updatedBooking.deposit_amount,
+      notes: updatedBooking.notes || '',
+    };
+
+    res.json({ 
+      success: true, 
+      message: `Đã cập nhật trạng thái lịch đặt thành ${status}!`,
+      data: formattedBooking 
+    });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật trạng thái đặt sân:', error.message);
+    res.status(500).json({ success: false, error: 'Lỗi server khi cập nhật trạng thái đặt sân' });
   }
 });
 

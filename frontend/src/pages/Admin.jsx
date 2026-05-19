@@ -1,25 +1,4 @@
-import React, { useState, useMemo } from 'react';
-
-// ─────────────────────────────────────────
-// MOCK DATA FOR ADMIN PORTAL
-// ─────────────────────────────────────────
-const INITIAL_BOOKINGS = [
-  { id: 'SC85921', name: 'Nguyễn Văn Test', phone: '0987654321', court: 'Sân C (Premium)', date: '2026-05-19', time: '17:00 – 20:00', price: 205000, status: 'Confirmed', payment: 'MoMo' },
-  { id: 'SC41295', name: 'Phan Minh Huy', phone: '0905112233', court: 'Sân E (VIP)', date: '2026-05-19', time: '08:00 – 10:00', price: 350000, status: 'Confirmed', payment: 'Chuyển khoản' },
-  { id: 'SC78129', name: 'Lê Thị Thảo', phone: '0935889900', court: 'Sân A (Standard)', date: '2026-05-19', time: '15:00 – 16:00', price: 75000, status: 'Pending', payment: 'Tiền mặt' },
-  { id: 'SC99238', name: 'Trần Đại Nghĩa', phone: '0914223344', court: 'Sân D (Premium)', date: '2026-05-20', time: '17:00 – 19:00', price: 310000, status: 'Confirmed', payment: 'ZaloPay' },
-  { id: 'SC55612', name: 'Phạm Thanh Sơn', phone: '0981999888', court: 'Sân B (Standard)', date: '2026-05-20', time: '06:00 – 08:00', price: 110000, status: 'Pending', payment: 'Chuyển khoản' },
-  { id: 'SC22319', name: 'Hoàng Ngọc Bích', phone: '0906777666', court: 'Sân E (VIP)', date: '2026-05-21', time: '16:00 – 18:00', price: 395000, status: 'Confirmed', payment: 'MoMo' }
-];
-
-const INITIAL_CUSTOMERS = [
-  { id: 'CUST001', name: 'Nguyễn Văn Test', phone: '0987654321', email: 'test@gmail.com', totalHours: 12, spent: 1150000, tier: 'VIP' },
-  { id: 'CUST002', name: 'Phan Minh Huy', phone: '0905112233', email: 'huy.phan@gmail.com', totalHours: 24, spent: 3800000, tier: 'VIP Gold' },
-  { id: 'CUST003', name: 'Lê Thị Thảo', phone: '0935889900', email: 'thao.le@yahoo.com', totalHours: 4, spent: 300000, tier: 'Standard' },
-  { id: 'CUST004', name: 'Trần Đại Nghĩa', phone: '0914223344', email: 'nghiatd@gmail.com', totalHours: 15, spent: 1850000, tier: 'VIP' },
-  { id: 'CUST005', name: 'Phạm Thanh Sơn', phone: '0981999888', email: 'sonpt@hotmail.com', totalHours: 8, spent: 680000, tier: 'Standard' },
-  { id: 'CUST006', name: 'Hoàng Ngọc Bích', phone: '0906777666', email: 'bichhn@gmail.com', totalHours: 32, spent: 5400000, tier: 'Elite VIP' }
-];
+import React, { useState, useMemo, useEffect } from 'react';
 
 export const Admin = () => {
   // Authentication status
@@ -29,63 +8,218 @@ export const Admin = () => {
   const [loginError, setLoginError] = useState('');
 
   // Dashboard state
-  const [activeTab, setActiveTab] = useState('bookings'); // 'bookings' | 'revenue' | 'customers' | 'courts'
-  const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
-  const [customers, setCustomers] = useState(INITIAL_CUSTOMERS);
+  const [activeTab, setActiveTab] = useState('bookings');
+  const [bookings, setBookings] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [courts, setCourts] = useState([]);
+  
+  // RBAC state
+  const [roles, setRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [rolePermissions, setRolePermissions] = useState([]);
+  const [userRoles, setUserRoles] = useState([]);
+  const [selectedRoleId, setSelectedRoleId] = useState('');
   
   // Search & Filters
   const [bookingSearch, setBookingSearch] = useState('');
-  const [bookingFilter, setBookingFilter] = useState('All'); // 'All' | 'Confirmed' | 'Pending'
+  const [bookingFilter, setBookingFilter] = useState('All');
   const [customerSearch, setCustomerSearch] = useState('');
 
-  // Court statuses
-  const [courts, setCourts] = useState([
-    { id: 'A', name: 'Sân A (Standard)', status: 'Active', load: '65%' },
-    { id: 'B', name: 'Sân B (Standard)', status: 'Active', load: '58%' },
-    { id: 'C', name: 'Sân C (Premium)', status: 'Active', load: '82%' },
-    { id: 'D', name: 'Sân D (Premium)', status: 'Maintenance', load: '0%' },
-    { id: 'E', name: 'Sân E (VIP)', status: 'Active', load: '90%' },
-  ]);
+  // Load live data from the database
+  const loadData = async () => {
+    try {
+      // 1. Fetch Bookings from Postgres
+      const bookingsRes = await fetch('http://localhost:5000/api/bookings');
+      const bookingsData = await bookingsRes.json();
+      if (bookingsData.success) {
+        const mappedBookings = bookingsData.data.map(b => ({
+          id: `SC${b.id}`,
+          rawId: b.id,
+          name: b.customerName,
+          phone: b.customerPhone,
+          court: b.courtName,
+          date: b.date,
+          time: b.time,
+          price: parseInt(b.depositAmount) || 0,
+          payment: b.paymentMethod,
+          status: b.status === 'pending' ? 'Pending' : (b.status === 'confirmed' ? 'Confirmed' : 'Cancelled')
+        }));
+        setBookings(mappedBookings);
+      }
 
-  // Handle Admin Login
-  const handleLogin = (e) => {
+      // 2. Fetch Customers from Postgres (LEFT JOIN queries)
+      const customersRes = await fetch('http://localhost:5000/api/auth/users');
+      const customersData = await customersRes.json();
+      if (customersData.success) {
+        setCustomers(customersData.data);
+      }
+
+      // 3. Fetch Court statuses from Postgres
+      const courtsRes = await fetch('http://localhost:5000/api/courts');
+      const courtsData = await courtsRes.json();
+      if (courtsData.success) {
+        const mappedCourts = courtsData.data.map(c => ({
+          id: c.id,
+          name: c.name,
+          status: c.status === 'available' ? 'Active' : 'Maintenance',
+          load: c.status === 'available' ? '65%' : '0%'
+        }));
+        setCourts(mappedCourts);
+      }
+
+      // 4. Fetch RBAC data from Postgres
+      const [rolesRes, permsRes, rpRes, urRes] = await Promise.all([
+        fetch('http://localhost:5000/api/rbac/roles'),
+        fetch('http://localhost:5000/api/rbac/permissions'),
+        fetch('http://localhost:5000/api/rbac/role-permissions'),
+        fetch('http://localhost:5000/api/rbac/user-roles')
+      ]);
+      const rolesData = await rolesRes.json();
+      const permsData = await permsRes.json();
+      const rpData = await rpRes.json();
+      const urData = await urRes.json();
+      if (rolesData.success) setRoles(rolesData.data);
+      if (permsData.success) setPermissions(permsData.data);
+      if (rpData.success) setRolePermissions(rpData.data);
+      if (urData.success) setUserRoles(urData.data);
+    } catch (error) {
+      console.error("Lỗi đồng bộ dữ liệu API với Postgres:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadData();
+      // Tự động reload mỗi 15 giây để đồng bộ liên tục khi có ai đặt sân mới!
+      const interval = setInterval(loadData, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [isLoggedIn]);
+
+  // Lấy header kèm token xác thực gửi lên API
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('smashcourt_token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
+  // Handle Admin Login (Kết nối trực tiếp tài khoản Postgres & Hỗ trợ demo bypass)
+  const handleLogin = async (e) => {
     e.preventDefault();
+    
+    // Bypass nhanh tài khoản demo 'admin' / 'admin' để thuận tiện phát triển
     if (username === 'admin' && password === 'admin') {
       setIsLoggedIn(true);
       setLoginError('');
-    } else {
-      setLoginError('Sai tài khoản hoặc mật khẩu chủ sân!');
+      loadData();
+      return;
     }
-  };
 
-  // Booking action handlers
-  const handleConfirmBooking = (id) => {
-    setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Confirmed' } : b));
-  };
-
-  const handleCancelBooking = (id) => {
-    if (window.confirm(`Bạn có chắc muốn hủy lịch đặt ${id}?`)) {
-      setBookings(prev => prev.filter(b => b.id !== id));
-    }
-  };
-
-  // Toggle court status
-  const toggleCourtStatus = (id) => {
-    setCourts(prev => prev.map(c => {
-      if (c.id === id) {
-        const nextStatus = c.status === 'Active' ? 'Maintenance' : 'Active';
-        return { ...c, status: nextStatus, load: nextStatus === 'Maintenance' ? '0%' : '50%' };
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: username, password: password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.user.role === 'admin' || data.user.role === 'staff') {
+          // Lưu token phân quyền vào bộ nhớ cục bộ
+          localStorage.setItem('smashcourt_token', data.token);
+          setIsLoggedIn(true);
+          setLoginError('');
+          loadData();
+        } else {
+          setLoginError('Tài khoản của bạn (Khách hàng) không được cấp quyền truy cập Admin!');
+        }
+      } else {
+        setLoginError(data.error || 'Sai tên đăng nhập hoặc mật khẩu!');
       }
-      return c;
-    }));
+    } catch (error) {
+      setLoginError('Không thể kết nối đến máy chủ backend!');
+    }
+  };
+
+  // Booking action handlers (Cập nhật trực tiếp xuống Postgres kèm Token xác thực)
+  const handleConfirmBooking = async (id) => {
+    const booking = bookings.find(b => b.id === id);
+    if (!booking) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/bookings/${booking.rawId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: 'confirmed' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadData(); // Tải lại dữ liệu ngay lập tức để đồng bộ hóa các con số doanh thu
+      } else {
+        alert("Lỗi duyệt lịch: " + data.error);
+      }
+    } catch (error) {
+      console.error("Lỗi duyệt lịch đặt sân:", error);
+      alert("Lỗi kết nối máy chủ backend!");
+    }
+  };
+
+  const handleCancelBooking = async (id) => {
+    const booking = bookings.find(b => b.id === id);
+    if (!booking) return;
+
+    if (window.confirm(`Bạn có chắc muốn hủy lịch đặt ${id}?`)) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/bookings/${booking.rawId}/status`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ status: 'cancelled' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadData(); // Tải lại dữ liệu ngay lập tức
+        } else {
+          alert("Lỗi hủy lịch: " + data.error);
+        }
+      } catch (error) {
+        console.error("Lỗi hủy lịch đặt sân:", error);
+        alert("Lỗi kết nối máy chủ backend!");
+      }
+    }
+  };
+
+  // Toggle court status (Cập nhật trực tiếp xuống Postgres kèm Token xác thực)
+  const toggleCourtStatus = async (id) => {
+    const court = courts.find(c => c.id === id);
+    if (!court) return;
+
+    const nextStatus = court.status === 'Active' ? 'maintenance' : 'available';
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/courts/${id}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: nextStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadData();
+      } else {
+        alert("Lỗi đổi trạng thái sân: " + data.error);
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật trạng thái sân:", error);
+      alert("Lỗi kết nối máy chủ backend!");
+    }
   };
 
   // Filtered Bookings
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
-      const matchesSearch = b.name.toLowerCase().includes(bookingSearch.toLowerCase()) ||
-                            b.phone.includes(bookingSearch) ||
-                            b.id.toLowerCase().includes(bookingSearch.toLowerCase());
+      const matchesSearch = (b.name || '').toLowerCase().includes(bookingSearch.toLowerCase()) ||
+                            (b.phone || '').includes(bookingSearch) ||
+                            (b.id || '').toLowerCase().includes(bookingSearch.toLowerCase());
       const matchesFilter = bookingFilter === 'All' ? true : b.status === bookingFilter;
       return matchesSearch && matchesFilter;
     });
@@ -94,17 +228,17 @@ export const Admin = () => {
   // Filtered Customers
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
-      return c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-             c.phone.includes(customerSearch) ||
-             c.email.toLowerCase().includes(customerSearch.toLowerCase());
+      return (c.name || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
+             (c.phone || '').includes(customerSearch) ||
+             (c.email || '').toLowerCase().includes(customerSearch.toLowerCase());
     });
   }, [customers, customerSearch]);
 
-  // Totalized Revenue Calculations
+  // Totalized Revenue Calculations (Phép tính động dựa trên Postgres thật)
   const stats = useMemo(() => {
     const totalConfirmed = bookings.filter(b => b.status === 'Confirmed').reduce((sum, b) => sum + b.price, 0);
     const totalPending = bookings.filter(b => b.status === 'Pending').reduce((sum, b) => sum + b.price, 0);
-    const totalSpent = customers.reduce((sum, c) => sum + c.spent, 0);
+    const totalSpent = customers.reduce((sum, c) => sum + (parseInt(c.spent) || 0), 0);
     return {
       revenueToday: totalConfirmed,
       potentialRevenue: totalPending,
@@ -241,6 +375,12 @@ export const Admin = () => {
             onClick={() => setActiveTab('courts')}
           >
             <span>🏸</span> Trạng thái sân
+          </button>
+          <button 
+            className={`ad-side-btn${activeTab === 'rbac' ? ' active' : ''}`}
+            onClick={() => setActiveTab('rbac')}
+          >
+            <span>🛡️</span> Phân quyền
           </button>
         </aside>
 
@@ -564,6 +704,173 @@ export const Admin = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: PHÂN QUYỀN RBAC */}
+          {activeTab === 'rbac' && (
+            <div className="ad-pane fade-up">
+              <div className="ad-pane-header">
+                <h4>🛡️ Quản lý phân quyền hệ thống (RBAC)</h4>
+              </div>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20 }}>
+                Phân vai trò cho người dùng và gán/thu hồi quyền hạn cho từng vai trò. Mọi thay đổi có hiệu lực ngay lập tức.
+              </p>
+
+              {/* ── SECTION 1: Danh sách vai trò ── */}
+              <div style={{ marginBottom: 32 }}>
+                <h5 style={{ color: 'var(--cyan)', marginBottom: 12, fontSize: 15 }}>📋 Danh sách vai trò trong hệ thống</h5>
+                <div className="ad-courts-mgmt-grid">
+                  {roles.map(role => (
+                    <div key={role.id} className={`ad-court-mgmt-card ${selectedRoleId === role.id ? 'active' : ''}`}
+                      style={{ cursor: 'pointer', border: selectedRoleId === role.id ? '2px solid var(--cyan)' : undefined }}
+                      onClick={() => setSelectedRoleId(role.id)}
+                    >
+                      <div className="ad-court-mgmt-header">
+                        <h5>{role.role_name}</h5>
+                        <span className="ad-court-status-tag active" style={{ fontSize: 11 }}>
+                          {role.user_count} người dùng
+                        </span>
+                      </div>
+                      <div className="ad-court-mgmt-body">
+                        <div className="ad-court-mgmt-row">
+                          <span>Mô tả</span>
+                          <b style={{ fontSize: 12 }}>{role.role_note || '—'}</b>
+                        </div>
+                        <div className="ad-court-mgmt-row">
+                          <span>Mã vai trò</span>
+                          <b style={{ fontFamily: 'monospace', color: 'var(--cyan)' }}>{role.id}</b>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── SECTION 2: Ma trận quyền hạn của vai trò đã chọn ── */}
+              {selectedRoleId && (
+                <div style={{ marginBottom: 32 }}>
+                  <h5 style={{ color: 'var(--green)', marginBottom: 12, fontSize: 15 }}>
+                    🔐 Quyền hạn của vai trò: <span style={{ color: 'var(--cyan)' }}>
+                      {roles.find(r => r.id === selectedRoleId)?.role_name}
+                    </span>
+                  </h5>
+                  <div className="ad-table-wrap">
+                    <table className="ad-table">
+                      <thead>
+                        <tr>
+                          <th>Quyền hạn</th>
+                          <th>Mô tả</th>
+                          <th>Controller / Action</th>
+                          <th>Trạng thái</th>
+                          <th>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {permissions.map(perm => {
+                          const rp = rolePermissions.find(r => r.role_id === selectedRoleId);
+                          const assigned = rp?.permissions?.some(p => p.perm_id === perm.id) || false;
+                          return (
+                            <tr key={perm.id}>
+                              <td><b>{perm.permision_name}</b></td>
+                              <td style={{ color: 'var(--muted)', fontSize: 12 }}>{perm.permision_note}</td>
+                              <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--cyan)' }}>
+                                {perm.lines && perm.lines[0]?.controller
+                                  ? perm.lines.map(l => `${l.controller}/${l.action}`).join(', ')
+                                  : '—'}
+                              </td>
+                              <td>
+                                <span className={`ad-status-badge ${assigned ? 'confirmed' : 'pending'}`}>
+                                  {assigned ? '✅ Đã gán' : '⛔ Chưa gán'}
+                                </span>
+                              </td>
+                              <td>
+                                {assigned ? (
+                                  <button className="ad-btn-cancel" style={{ fontSize: 12 }}
+                                    onClick={async () => {
+                                      await fetch('http://localhost:5000/api/rbac/role-perm/revoke', {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ roleId: selectedRoleId, permId: perm.id })
+                                      });
+                                      loadData();
+                                    }}
+                                  >Thu hồi ✕</button>
+                                ) : (
+                                  <button className="ad-btn-approve" style={{ fontSize: 12 }}
+                                    onClick={async () => {
+                                      await fetch('http://localhost:5000/api/rbac/role-perm/assign', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ roleId: selectedRoleId, permId: perm.id })
+                                      });
+                                      loadData();
+                                    }}
+                                  >Gán quyền ✓</button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ── SECTION 3: Gán vai trò cho người dùng ── */}
+              <div>
+                <h5 style={{ color: '#CC66FF', marginBottom: 12, fontSize: 15 }}>👥 Gán vai trò cho người dùng</h5>
+                <div className="ad-table-wrap">
+                  <table className="ad-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Họ tên</th>
+                        <th>Email</th>
+                        <th>Vai trò hiện tại</th>
+                        <th>Đổi vai trò</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userRoles.map(u => (
+                        <tr key={u.id}>
+                          <td className="ad-code">{u.id}</td>
+                          <td><b>{u.full_name}</b></td>
+                          <td>{u.email}</td>
+                          <td>
+                            <span className={`ad-tier-badge ${u.role_id === 'r-admin' ? 'elite-vip' : u.role_id === 'r-staff' ? 'vip-gold' : 'standard'}`}>
+                              {u.role_name || 'Chưa gán'}
+                            </span>
+                          </td>
+                          <td>
+                            <select
+                              className="ad-filter-select"
+                              style={{ minWidth: 160 }}
+                              value={u.role_id || ''}
+                              onChange={async (e) => {
+                                const newRoleId = e.target.value;
+                                if (!newRoleId) return;
+                                await fetch('http://localhost:5000/api/rbac/assign', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ userId: u.id, roleId: newRoleId })
+                                });
+                                loadData();
+                              }}
+                            >
+                              <option value="">-- Chọn vai trò --</option>
+                              {roles.map(r => (
+                                <option key={r.id} value={r.id}>{r.role_name}</option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

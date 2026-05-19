@@ -23,7 +23,7 @@ const initDatabase = async () => {
       FROM information_schema.columns 
       WHERE table_name='bookings' AND column_name='customer_phone'
     `);
-    
+
     if (checkColumn.rows.length === 0) {
       console.log('⚠️ Phát hiện cấu trúc bảng bookings cũ. Đang tự động nâng cấp cấu trúc bảng...');
       await pool.query('DROP TABLE IF EXISTS bookings;');
@@ -73,12 +73,74 @@ const initDatabase = async () => {
     );
   `;
 
+  // ──────────── RBAC TABLES ────────────
+  const createRoleTable = `
+    CREATE TABLE IF NOT EXISTS role (
+      id VARCHAR(36) PRIMARY KEY,
+      role_name VARCHAR(100) NOT NULL,
+      role_note VARCHAR(200),
+      deleted BOOLEAN DEFAULT FALSE,
+      created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_by VARCHAR(36)
+    );
+  `;
+  const createPermisionTable = `
+    CREATE TABLE IF NOT EXISTS permision (
+      id VARCHAR(36) PRIMARY KEY,
+      permision_name VARCHAR(100) NOT NULL,
+      permision_note VARCHAR(200),
+      deleted BOOLEAN DEFAULT FALSE,
+      created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_by VARCHAR(36),
+      menu_assign VARCHAR(36)
+    );
+  `;
+  const createPermisionLinesTable = `
+    CREATE TABLE IF NOT EXISTS permision_lines (
+      id VARCHAR(36) PRIMARY KEY,
+      permision_id VARCHAR(36) REFERENCES permision(id) ON DELETE CASCADE,
+      controller_name VARCHAR(100) NOT NULL,
+      action_name VARCHAR(100) NOT NULL
+    );
+  `;
+  const createMenuTable = `
+    CREATE TABLE IF NOT EXISTS menu (
+      id VARCHAR(36) PRIMARY KEY,
+      menu_title VARCHAR(100),
+      menu_url VARCHAR(100),
+      menu_period INT,
+      menu_type INT,
+      parent_id VARCHAR(36),
+      menu_icon VARCHAR(30)
+    );
+  `;
+  const createRolePermisionTable = `
+    CREATE TABLE IF NOT EXISTS role_permision (
+      id VARCHAR(36) PRIMARY KEY,
+      role_id VARCHAR(36) REFERENCES role(id) ON DELETE CASCADE,
+      permision_id VARCHAR(36) REFERENCES permision(id) ON DELETE CASCADE
+    );
+  `;
+  const createUserRoleTable = `
+    CREATE TABLE IF NOT EXISTS user_role (
+      id VARCHAR(36) PRIMARY KEY,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      role_id VARCHAR(36) REFERENCES role(id) ON DELETE CASCADE
+    );
+  `;
+
   try {
     await pool.query(createUsersTable);
     await pool.query(createCourtsTable);
     await pool.query(createBookingsTable);
-    console.log('✅ Khởi tạo các bảng database (users, courts, bookings) thành công!');
-    
+    await pool.query(createRoleTable);
+    await pool.query(createPermisionTable);
+    await pool.query(createPermisionLinesTable);
+    await pool.query(createMenuTable);
+    await pool.query(createRolePermisionTable);
+    await pool.query(createUserRoleTable);
+    console.log('✅ Khởi tạo các bảng database (users, courts, bookings + RBAC) thành công!');
+
     // Thêm dữ liệu sân mẫu nếu bảng trống
     const courtsCount = await pool.query('SELECT COUNT(*) FROM courts');
     if (parseInt(courtsCount.rows[0].count) === 0) {
@@ -108,6 +170,107 @@ const initDatabase = async () => {
       await pool.query(seedUsers, [adminPasswordHash, customerPasswordHash]);
       console.log('🌱 Đã tạo các tài khoản đăng nhập mẫu (Admin và Khách hàng)!');
     }
+
+    // Thêm lịch đặt mẫu nếu bảng bookings trống để test dễ dàng
+    const bookingsCount = await pool.query('SELECT COUNT(*) FROM bookings');
+    if (parseInt(bookingsCount.rows[0].count) === 0) {
+      const seedBookings = `
+        INSERT INTO bookings (court_id, court_name, booking_date, time_slot, status, customer_name, customer_phone, customer_email, payment_method, deposit_amount, notes) VALUES
+        (1, 'Sân A1', CURRENT_DATE, '08:00 - 10:00', 'pending', 'Nguyễn Văn A', '0907654321', 'khachhang@gmail.com', 'Chuyển khoản MoMo', 140000, 'Khách hàng quen đặt cuối tuần'),
+        (3, 'Sân B1', CURRENT_DATE, '14:00 - 16:00', 'confirmed', 'Trần Thị B', '0988777666', 'tranthib@gmail.com', 'Thẻ ngân hàng', 170000, 'Đã cọc trước 100%'),
+        (5, 'Sân VIP', CURRENT_DATE + 1, '19:00 - 21:00', 'pending', 'Phan Minh Huy', '0905112233', 'huy.phan@gmail.com', 'Chuyển khoản MoMo', 240000, 'Đặt sân tập giải đấu!');
+      `;
+      await pool.query(seedBookings);
+      console.log('🌱 Đã thêm lịch đặt sân cầu lông mẫu vào database!');
+    }
+
+    // ──── SEED DỮ LIỆU PHÂN QUYỀN RBAC ────
+    const roleCount = await pool.query('SELECT COUNT(*) FROM role');
+    if (parseInt(roleCount.rows[0].count) === 0) {
+      // 1. Seed Roles
+      await pool.query(`
+        INSERT INTO role (id, role_name, role_note) VALUES
+        ('r-admin',    'Chủ sân (Admin)',       'Toàn quyền quản lý hệ thống'),
+        ('r-staff',    'Nhân viên sân (Staff)', 'Quản lý lịch đặt và trạng thái sân'),
+        ('r-customer', 'Khách hàng',            'Đặt sân và xem lịch sử')
+      `);
+
+      // 2. Seed Permissions
+      await pool.query(`
+        INSERT INTO permision (id, permision_name, permision_note) VALUES
+        ('p-booking-manage', 'Quản lý lịch đặt',  'Duyệt, hủy lịch đặt sân'),
+        ('p-court-manage',   'Quản lý sân bãi',    'Bật/tắt trạng thái sân'),
+        ('p-revenue-view',   'Xem doanh thu',       'Xem báo cáo và phân tích doanh thu'),
+        ('p-customer-view',  'Xem khách hàng',      'Tra cứu danh sách khách hàng'),
+        ('p-rbac-manage',    'Quản lý phân quyền', 'Phân vai trò và quyền hạn người dùng'),
+        ('p-booking-create', 'Đặt sân',             'Tạo lịch đặt sân mới')
+      `);
+
+      // 3. Seed Permission Lines (Controller/Action mapping)
+      await pool.query(`
+        INSERT INTO permision_lines (id, permision_id, controller_name, action_name) VALUES
+        ('pl-01', 'p-booking-manage', 'Bookings', 'Confirm'),
+        ('pl-02', 'p-booking-manage', 'Bookings', 'Cancel'),
+        ('pl-03', 'p-booking-manage', 'Bookings', 'View'),
+        ('pl-04', 'p-court-manage',   'Courts',   'UpdateStatus'),
+        ('pl-05', 'p-court-manage',   'Courts',   'View'),
+        ('pl-06', 'p-revenue-view',   'Revenue',  'View'),
+        ('pl-07', 'p-customer-view',  'Customers','View'),
+        ('pl-08', 'p-rbac-manage',    'RBAC',     'Manage'),
+        ('pl-09', 'p-booking-create', 'Bookings', 'Create')
+      `);
+
+      // 4. Seed Menus
+      await pool.query(`
+        INSERT INTO menu (id, menu_title, menu_url, menu_type, menu_icon) VALUES
+        ('m-home',     'Trang chủ',       '/home',    1, 'home'),
+        ('m-booking',  'Đặt sân',         '/booking', 1, 'calendar'),
+        ('m-admin-bk', 'Quản lý lịch đặt','/admin',  2, 'list'),
+        ('m-admin-ct', 'Quản lý sân',     '/admin',   2, 'map'),
+        ('m-revenue',  'Doanh thu',       '/admin',   2, 'chart'),
+        ('m-customers','Khách hàng',      '/admin',   2, 'users'),
+        ('m-rbac',     'Phân quyền',      '/admin',   2, 'shield')
+      `);
+
+      // 5. Assign Permissions → Roles
+      await pool.query(`
+        INSERT INTO role_permision (id, role_id, permision_id) VALUES
+        ('rp-01','r-admin','p-booking-manage'),
+        ('rp-02','r-admin','p-court-manage'),
+        ('rp-03','r-admin','p-revenue-view'),
+        ('rp-04','r-admin','p-customer-view'),
+        ('rp-05','r-admin','p-rbac-manage'),
+        ('rp-06','r-admin','p-booking-create'),
+        ('rp-07','r-staff','p-booking-manage'),
+        ('rp-08','r-staff','p-court-manage'),
+        ('rp-09','r-staff','p-customer-view'),
+        ('rp-10','r-customer','p-booking-create')
+      `);
+
+      console.log('🌱 Đã khởi tạo dữ liệu Phân quyền RBAC (Roles, Permissions, Menus)!');
+    }
+
+    // 6. Assign Roles → Users (nếu user_role trống)
+    const userRoleCount = await pool.query('SELECT COUNT(*) FROM user_role');
+    if (parseInt(userRoleCount.rows[0].count) === 0) {
+      const adminUser = await pool.query("SELECT id FROM users WHERE email = 'admin@smashcourt.com' LIMIT 1");
+      const custUser  = await pool.query("SELECT id FROM users WHERE email = 'khachhang@gmail.com' LIMIT 1");
+
+      if (adminUser.rows.length > 0) {
+        await pool.query(
+          `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-admin')`,
+          [`ur-${adminUser.rows[0].id}`, adminUser.rows[0].id]
+        );
+      }
+      if (custUser.rows.length > 0) {
+        await pool.query(
+          `INSERT INTO user_role (id, user_id, role_id) VALUES ($1, $2, 'r-customer')`,
+          [`ur-${custUser.rows[0].id}`, custUser.rows[0].id]
+        );
+      }
+      console.log('🌱 Đã gán vai trò cho các tài khoản mẫu!');
+    }
+
   } catch (error) {
     console.error('❌ Lỗi khi khởi tạo database:', error.message);
   }

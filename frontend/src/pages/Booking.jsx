@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useTheme } from '../context/ThemeContext';
 import { motion } from 'framer-motion';
@@ -155,21 +155,101 @@ export const Booking = () => {
     notes: '',
   });
 
-  const [bookings, setBookings] = useState([
-    { id: 1, court: 'Sân A1', date: '2026-05-25', time: '14:00 - 16:00', status: 'Đã xác nhận' },
-    { id: 2, court: 'Sân B2', date: '2026-05-28', time: '19:00 - 21:00', status: 'Chờ xác nhận' },
-  ]);
+  const [bookings, setBookings] = useState([]);
+
+  const loadBookings = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/bookings');
+      const data = await res.json();
+      if (data.success) {
+        const mapped = data.data.map(b => ({
+          id: b.id,
+          court: b.courtName,
+          date: b.date,
+          time: b.time,
+          status: b.status === 'pending' ? 'Chờ xác nhận' : (b.status === 'confirmed' ? 'Đã xác nhận' : 'Đã hủy')
+        }));
+        setBookings(mapped);
+      }
+    } catch (error) {
+      console.error("Lỗi lấy lịch sử đặt sân:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadBookings();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setBookingData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Booking data:', bookingData);
-    alert('Đặt sân thành công! Vui lòng kiểm tra email để xác nhận.');
-    setBookingData({ court: '', date: '', startTime: '', endTime: '', notes: '' });
+    
+    // Map selected court key to name and courtId
+    const courtIdMap = {
+      'san-a1': { id: 1, name: 'Sân A1' },
+      'san-a2': { id: 2, name: 'Sân A2' },
+      'san-b1': { id: 3, name: 'Sân B1' },
+      'san-b2': { id: 4, name: 'Sân B2' },
+      'san-vip': { id: 5, name: 'Sân VIP' }
+    };
+
+    const selected = courtIdMap[bookingData.court];
+    if (!selected) {
+      alert("Vui lòng chọn sân hợp lệ!");
+      return;
+    }
+
+    try {
+      // Calculate price based on court
+      const courtPrices = {
+        'san-a1': 150000,
+        'san-a2': 150000,
+        'san-b1': 180000,
+        'san-b2': 180000,
+        'san-vip': 250000
+      };
+
+      const startTimeHour = parseInt(bookingData.startTime.split(':')[0]) || 0;
+      const endTimeHour = parseInt(bookingData.endTime.split(':')[0]) || 0;
+      const hours = Math.max(1, endTimeHour - startTimeHour);
+      const totalAmount = courtPrices[bookingData.court] * hours;
+
+      const payload = {
+        courtId: selected.id,
+        courtName: selected.name,
+        date: bookingData.date,
+        startTime: bookingData.startTime,
+        endTime: bookingData.endTime,
+        notes: bookingData.notes,
+        customerName: 'Nguyễn Văn A', // Tài khoản khách hàng mẫu
+        customerPhone: '0987654321',
+        customerEmail: 'khachhang@gmail.com',
+        paymentMethod: 'Chuyển khoản MoMo',
+        depositAmount: totalAmount
+      };
+
+      const res = await fetch('http://localhost:5000/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('Đặt lịch sân cầu lông thành công! Trạng thái đang Chờ duyệt. Hệ thống sẽ tự động cập nhật trong giây lát!');
+        loadBookings(); // Tải lại lịch sử đặt sân
+        setBookingData({ court: '', date: '', startTime: '', endTime: '', notes: '' });
+      } else {
+        alert('Lỗi đặt sân: ' + data.error);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Không thể kết nối máy chủ backend!');
+    }
   };
 
   return (

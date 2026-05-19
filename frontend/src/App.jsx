@@ -12,6 +12,8 @@ import { Contact } from './pages/Contact';
 import { FAQ } from './pages/FAQ';
 import { Login, Register } from './pages/Auth';
 import { Admin } from './pages/Admin';
+import { Owner } from './pages/Owner';
+import { Staff } from './pages/Staff';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
@@ -46,7 +48,11 @@ function App() {
               <Route path="/register" element={<Register />} />
             </Route>
 
-            {/* Completely isolated admin portal */}
+            {/* Dedicated owner and staff dashboards */}
+            <Route path="/owner" element={<Owner />} />
+            <Route path="/staff" element={<Staff />} />
+
+            {/* Completely isolated admin portal for developer/debug use */}
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin.html" element={<Admin />} />
           </Routes>

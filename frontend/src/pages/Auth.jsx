@@ -125,7 +125,13 @@ export const Login = () => {
 
     const result = await login({ email, password });
     if (result.success) {
-      navigate('/');
+      if (result.role === 'admin') {
+        navigate('/owner');
+      } else if (result.role === 'staff') {
+        navigate('/staff');
+      } else {
+        navigate('/');
+      }
     } else {
       setError(result.message);
       setShakeKey(k => k + 1);
